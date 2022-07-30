@@ -1,19 +1,21 @@
 document.body.style.backgroundColor = 'orange';
-
-var rawHints = ['AL-1', 'AM-2', 'AN-3', 'KO-3', 'LA-4', 'LL-2', 'LO-2', 'MA-8', 'MO-4', 'NA-2', 'WA-4', 'WO-1'];
+var rawHints = [];
 var wordList = [];
 var hints = [];
-rawHints.sort();
-rawHints.forEach((element, index) => {
-    var parts = element.split('-');
-    parts[0][1] -= ('a' - 'A');
-    hints.push(new Hint(parts[0].charAt(0) + parts[0].charAt(1).toLowerCase(), parseInt(parts[1])));
-});
 
 function Hint(prefix, count) {
     this.prefix = prefix;
     this.count = count;
 }
+
+fetch('/2022/07/30/crosswords/spelling-bee-forum.html').then(r => r.text()).then(html => {
+    var regex = / [a-z]{2}-[1-9]/gm
+    while (match = regex.exec(html)) {
+        rawHints.push(match[0].trim());
+    }
+    rawHints = rawHints.filter((v, i, a) => a.indexOf(v) === i);
+    rawHints.sort();
+});
 
 var hives = document.getElementsByClassName('hive-action__submit');
 for (let i = 0; i < hives.length; i++) {
@@ -21,9 +23,20 @@ for (let i = 0; i < hives.length; i++) {
     element.addEventListener("click", wordListUpdater);
 }
 
+wordListUpdater();
+
+function buildHints() {
+    hints = [];
+    rawHints.forEach((element, index) => {
+        var parts = element.split('-');
+        parts[0][1] -= ('a' - 'A');
+        hints.push(new Hint(parts[0].charAt(0).toUpperCase() + parts[0].charAt(1), parseInt(parts[1])));
+    });
+}
+
 window.addEventListener('keyup', function (e) {
     if (e.key === 'Enter') {
-      wordListUpdater();
+        wordListUpdater();
     }
 });
 
@@ -37,7 +50,7 @@ function getWordList() {
 }
 
 function wordListUpdater() {
-
+    buildHints();
     setTimeout(() => {
         var cleanup = document.getElementsByClassName('beehive');
         let len = cleanup.length;
@@ -54,21 +67,22 @@ function wordListUpdater() {
         let wi = 0;
         let hi = 0;
         while (hi < hints.length) {
-            foundMatch = false;
             for (let i = 0; i < hints[hi].count; i++) {
                 if (wi >= wordList.length || !wordList[wi].startsWith(hints[hi].prefix)) {
                     console.log("added " + hints[hi].prefix + " to hint list " + wi + " " + hi);
-                    appendHintPrefix(hints[hi].prefix);
                 } else {
-                    foundMatch = true;
                     wi++;
+                    hints[hi].count--;
                 }
+            }
+            if (hints[hi].count > 0) {
+                appendHintPrefix(hints[hi].prefix + " (" + hints[hi].count + " more)");
             }
             hi++;
             while (wi < wordList.length && wordList[wi] < hints[hi].prefix)
                 wi++;
         }
-    }, 100)
+    }, 50)
 }
 
 
