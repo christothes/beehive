@@ -1,0 +1,27 @@
+{
+    "name": "BeeHive",
+    "description": "Spelling Bee Companion",
+    "version": "1.0",
+    "manifest_version": 3,
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://*.nytimes.com/*"
+            ],
+            "css": [
+                "beehive.css"
+            ],
+            "js": [
+                "content-script.js"
+            ]
+        }
+    ],
+    "permissions": [
+        "storage",
+        "activeTab",
+        "scripting"
+    ]
+}
