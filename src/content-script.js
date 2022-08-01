@@ -78,9 +78,10 @@ function wordListUpdater() {
         let wi = 0;
         let hi = 0;
         while (hi < hints.length) {
-            for (let i = 0; i < hints[hi].count; i++) {
+            let pfCount = hints[hi].count;
+            for (let i = 0; i < pfCount; i++) {
                 if (wi >= wordList.length || !wordList[wi].startsWith(hints[hi].prefix)) {
-                    console.log("added " + hints[hi].prefix + " to hint list " + wi + " " + hi);
+                    continue;
                 } else {
                     wi++;
                     hints[hi].count--;

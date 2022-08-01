@@ -3,9 +3,6 @@
     "description": "Spelling Bee Companion",
     "version": "1.0",
     "manifest_version": 3,
-    "host_permissions": [
-        "https://*.azure.com/"
-    ],
     "content_scripts": [
         {
             "matches": [
@@ -26,7 +23,6 @@
         "128": "spelling-bee-card-icon.png"
     },
     "permissions": [
-        "storage",
         "activeTab",
         "scripting"
     ]
