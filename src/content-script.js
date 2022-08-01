@@ -12,7 +12,7 @@ let yr = new Intl.DateTimeFormat('en', { year: 'numeric' }).format(d);
 let mo = new Intl.DateTimeFormat('en', { month: '2-digit' }).format(d);
 let da = new Intl.DateTimeFormat('en', { day: '2-digit' }).format(d);
 fetch(`/${yr}/${mo}/${da}/crosswords/spelling-bee-forum.html`).then(r => r.text()).then(html => {
-    var regex = / [a-z]{2}-[1-9]/gm
+    var regex = / [a-z]{2}-[1-9]+/gm
     while (match = regex.exec(html)) {
         rawHints.push(match[0].trim());
     }
@@ -34,6 +34,7 @@ function buildHints() {
         parts[0][1] -= ('a' - 'A');
         hints.push(new Hint(parts[0].charAt(0).toUpperCase() + parts[0].charAt(1), parseInt(parts[1])));
     });
+    console.log("built hints");
 }
 
 window.addEventListener('keyup', function (e) {
@@ -46,6 +47,12 @@ function getWordList() {
     var words = document.getElementsByClassName('sb-wordlist-items-pag')[0].children
     for (let i = 0; i < words.length; i++) {
         const element = words[i];
+        element.removeAttribute("class", "beehive-pangram");
+        if([...element.innerText.toLowerCase()].filter((v, i, a) => a.indexOf(v) === i).length == 7)
+        {
+            //pangram
+            element.setAttribute("class", "beehive-pangram");
+        }
         wordList.push(element.innerText.charAt(0).toUpperCase() + element.innerText.slice(1));
     }
     wordList.sort();
@@ -56,12 +63,10 @@ function wordListUpdater() {
     setTimeout(() => {
         var cleanup = document.getElementsByClassName('beehive');
         let len = cleanup.length;
-        console.log("found " + cleanup.length + " items to cleanup");
         var ul = document.getElementsByClassName('sb-wordlist-items-pag')[0];
         for (let i = 0; i < len; i++) {
             const element = cleanup[0];
             ul.removeChild(element);
-            console.log("cleanup");
         }
         wordList = [];
         getWordList();
