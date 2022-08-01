@@ -23,7 +23,5 @@
         "128": "spelling-bee-card-icon.png"
     },
     "permissions": [
-        "activeTab",
-        "scripting"
     ]
 }
