@@ -6,3 +6,18 @@
   .beehive-pangram {
     font-weight: bold;
   }
+
+  .coupontooltip.showtooltip {
+    /* NEW */
+    visibility: visible;
+  }
+  
+  .coupontooltip {
+    /* display: none; */
+    visibility: hidden;
+    /* NEW */
+    background: #C8C8C8;
+    padding: 2px;
+    margin: 2px;
+    z-index: 1000;
+  }

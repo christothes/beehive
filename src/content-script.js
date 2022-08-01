@@ -1,12 +1,19 @@
 var rawHints = [];
 var wordList = [];
+var wordListMap = new Map();
+var hiveMap = new Map();
 var hints = [];
+var wordLengths = new Map();
+wordLengths.set('*', []);
+var span;
+var spanHeader;
 
 function Hint(prefix, count) {
     this.prefix = prefix;
     this.count = count;
 }
 
+// build hint data from hints page
 let d = new Date();
 let yr = new Intl.DateTimeFormat('en', { year: 'numeric' }).format(d);
 let mo = new Intl.DateTimeFormat('en', { month: '2-digit' }).format(d);
@@ -19,14 +26,64 @@ fetch(`/${yr}/${mo}/${da}/crosswords/spelling-bee-forum.html`).then(r => r.text(
     rawHints = rawHints.filter((v, i, a) => a.indexOf(v) === i);
     rawHints.sort();
     wordListUpdater();
+
+    // parse the DOM
+    var parser = new DOMParser();
+    // Parse the text
+    var doc = parser.parseFromString(html, "text/html");
+    var table = doc.querySelector('table');
+    var cells = table.querySelectorAll("td");
+    let rowLen = 1;
+    let curLetter = ' ';
+    for (var i = 0; i < cells.length; i++) {
+        let cellText = cells[i].innerText;
+        if (rowLen == 1) {
+            if (cellText.indexOf(':') >= 0) {
+                rowLen = i;
+                curLetter = cellText.charAt(0).toUpperCase();
+                wordLengths.set(curLetter, []);
+                console.log(`wordLengths: found rowLen ${rowLen} for '${cellText}'`);
+            } else if (i > 0 && cellText != 'Σ') {
+                wordLengths.get('*').push(parseInt(cellText));
+            }
+        } else {
+            let index = i % rowLen;
+            if (index == 0) {
+                curLetter = cellText.charAt(0).toUpperCase();
+                wordLengths.set(curLetter, []);
+            }
+            else if (index < rowLen) {
+                let parsed = parseInt(cellText);
+                wordLengths.get(curLetter).push(isNaN(parsed) ? 0 : parsed);
+            }
+        }
+        console.log(`wordLengths: ${cellText} ${i % rowLen}`);
+    }
+    console.log(wordLengths);
+    createTooltip();
 });
 
+// attach handlers to the 'Enter' button
 var hives = document.getElementsByClassName('hive-action__submit');
 for (let i = 0; i < hives.length; i++) {
     const element = hives[i];
     element.addEventListener("click", wordListUpdater);
 }
+window.addEventListener('keyup', function (e) {
+    if (e.key === 'Enter') {
+        wordListUpdater();
+    }
+});
 
+// attach handlers to hover on hives
+var hives = document.getElementsByClassName('hive-cell');
+for (let i = 0; i < hives.length; i++) {
+    const element = hives[i];
+    element.addEventListener("mouseenter", showLengthHints);
+    element.addEventListener("mouseleave", hideLengthHints);
+}
+
+// Build the hints
 function buildHints() {
     hints = [];
     rawHints.forEach((element, index) => {
@@ -37,23 +94,27 @@ function buildHints() {
     console.log("built hints");
 }
 
-window.addEventListener('keyup', function (e) {
-    if (e.key === 'Enter') {
-        wordListUpdater();
-    }
-});
-
+// Get the words already submitted from the word bank
 function getWordList() {
+    // clone the wordLength map
+    let remainingLengths = new Map();
+    var keys = wordLengths.keys();
+    for (const key of keys) {
+        remainingLengths.set(key, [...wordLengths.get(key)]);
+    }
+
     var words = document.getElementsByClassName('sb-wordlist-items-pag')[0].children
     for (let i = 0; i < words.length; i++) {
         const element = words[i];
+        const text = element.innerText;
+        let len = text.length;
+        remainingLengths.get(text.charAt(0).toUpperCase())[len - remainingLengths.get('*')[0]]--;
         element.removeAttribute("class", "beehive-pangram");
-        if([...element.innerText.toLowerCase()].filter((v, i, a) => a.indexOf(v) === i).length == 7)
-        {
-            //pangram
+        if ([...text.toLowerCase()].filter((v, i, a) => a.indexOf(v) === i).length == 7) {
+            //this is a pangram
             element.setAttribute("class", "beehive-pangram");
         }
-        wordList.push(element.innerText.charAt(0).toUpperCase() + element.innerText.slice(1));
+        wordList.push(text.charAt(0).toUpperCase() + text.slice(1));
     }
     wordList.sort();
 }
@@ -93,6 +154,44 @@ function wordListUpdater() {
     }, 50)
 }
 
+function showLengthHints(evt) {
+    var letter = hiveMap.get(evt.target);
+    if (wordLengths.has(letter)) {
+        var arr = wordLengths.get(letter);
+        span.textContent = `${arr.slice(0, arr.length - 1)}`;
+        span.setAttribute('class', 'coupontooltip showtooltip');
+        spanHeader.setAttribute('class', 'coupontooltip showtooltip');
+    }
+}
+
+function hideLengthHints(evt) {
+    span.setAttribute('class', 'coupontooltip');
+    spanHeader.setAttribute('class', 'coupontooltip');
+}
+
+function createTooltip() {
+    //sb-controls
+    var controls = document.getElementsByClassName('sb-controls')[0];
+    var hives = document.getElementsByClassName('hive-cell');
+    spanHeader = document.createElement("span");
+    spanHeader.appendChild(document.createTextNode(`${wordLengths.get('*')}`));
+    span = document.createElement("span");
+    span.appendChild(document.createTextNode("test"));
+    span.setAttribute("class", "coupontooltip");
+    // Get the parent's first child
+    let theFirstChild = controls.firstChild
+    // Insert the new element before the first child
+    controls.insertBefore(spanHeader, theFirstChild)
+    controls.insertBefore(span, theFirstChild)
+    for (let index = 0; index < 7; index++) {
+        let hive = hives[index];
+        var hiveTexts = hive.getElementsByTagName('text');
+        if (hiveTexts.length == 1) {
+            var hiveText = hiveTexts[0];
+            hiveMap.set(hive, hiveText.textContent.toUpperCase());
+        }
+    }
+}
 
 function appendHintPrefix(prefix) {
     var ul = document.getElementsByClassName('sb-wordlist-items-pag')[0];
