@@ -7,17 +7,30 @@
     font-weight: bold;
   }
 
-  .coupontooltip.showtooltip {
+  .hinttooltip.showtooltip {
     /* NEW */
     visibility: visible;
   }
-  
-  .coupontooltip {
-    /* display: none; */
+
+  .hinttooltip {
     visibility: hidden;
     /* NEW */
     background: #C8C8C8;
     padding: 2px;
     margin: 2px;
     z-index: 1000;
+  }
+
+  .bhcell {
+    width: 30px;
+    min-width: 30px;
+    max-width: 30px;
+    text-align: center;
+  }
+
+  .bhheadercell {
+    width: 30px;
+    min-width: 30px;
+    max-width: 30px;
+    font-weight: bold;
   }

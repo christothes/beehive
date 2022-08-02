@@ -5,8 +5,10 @@ var hiveMap = new Map();
 var hints = [];
 var wordLengths = new Map();
 wordLengths.set('*', []);
+var lengthsDiv
 var span;
 var spanHeader;
+var hintTable;
 
 function Hint(prefix, count) {
     this.prefix = prefix;
@@ -108,7 +110,9 @@ function getWordList() {
         const element = words[i];
         const text = element.innerText;
         let len = text.length;
-        remainingLengths.get(text.charAt(0).toUpperCase())[len - remainingLengths.get('*')[0]]--;
+        var arr = remainingLengths.get(text.charAt(0).toUpperCase());
+        arr[len - remainingLengths.get('*')[0]]--;
+        arr[arr.length -1]--;
         element.removeAttribute("class", "beehive-pangram");
         if ([...text.toLowerCase()].filter((v, i, a) => a.indexOf(v) === i).length == 7) {
             //this is a pangram
@@ -151,38 +155,65 @@ function wordListUpdater() {
             while (wi < wordList.length && wordList[wi] < hints[hi].prefix)
                 wi++;
         }
+        buildhintTable();
     }, 50)
 }
 
-function showLengthHints(evt) {
-    var letter = hiveMap.get(evt.target);
-    if (wordLengths.has(letter)) {
-        var arr = wordLengths.get(letter);
-        span.textContent = `${arr.slice(0, arr.length - 1)}`;
-        span.setAttribute('class', 'coupontooltip showtooltip');
-        spanHeader.setAttribute('class', 'coupontooltip showtooltip');
+function buildhintTable() {
+    var html = [];
+    addTableRow(html, '*', true);
+    var keys = wordLengths.keys();
+    for (const key of keys) {
+        if (key == "*" || key == 'Σ')
+            continue;
+        addTableRow(html, key, false);
     }
+
+    var tableHtml = html.join("");
+    hintTable.innerHTML = tableHtml;
+    lengthsDiv.setAttribute('class', 'hinttooltip showtooltip');
+}
+
+function showLengthHints() {
+    lengthsDiv.setAttribute('class', 'hinttooltip showtooltip');
+}
+
+function addTableRow(arr, key, isHeader) {
+    data = wordLengths.get(key);
+    arr.push('<tr class="bhrow">');
+    if (isHeader)
+            arr.push('<th class="bhheadercell"> </th>');
+        else
+            arr.push(`<td class="bhcell">${key}</td>`);
+    for (let i = 0; i < data.length; i++) {
+        const cell = data[i];
+        if (isHeader)
+            arr.push(`<th class="bhheadercell">${cell}</th>`);
+        else
+            arr.push(`<td class="bhcell">${cell}</td>`);
+    }
+    arr.push("</tr>");
 }
 
 function hideLengthHints(evt) {
-    span.setAttribute('class', 'coupontooltip');
-    spanHeader.setAttribute('class', 'coupontooltip');
+    lengthsDiv.setAttribute('class', 'hinttooltip');
 }
 
 function createTooltip() {
     //sb-controls
     var controls = document.getElementsByClassName('sb-controls')[0];
     var hives = document.getElementsByClassName('hive-cell');
-    spanHeader = document.createElement("span");
-    spanHeader.appendChild(document.createTextNode(`${wordLengths.get('*')}`));
-    span = document.createElement("span");
-    span.appendChild(document.createTextNode("test"));
-    span.setAttribute("class", "coupontooltip");
+    lengthsDiv = document.createElement("div");
+    lengthsDiv.setAttribute("class", "hinttooltip");
+    hintTable = document.createElement("table");
+    hintTable.setAttribute("class", "bhtable");
+    lengthsDiv.appendChild(hintTable);
+
     // Get the parent's first child
     let theFirstChild = controls.firstChild
     // Insert the new element before the first child
-    controls.insertBefore(spanHeader, theFirstChild)
-    controls.insertBefore(span, theFirstChild)
+    controls.insertBefore(lengthsDiv, theFirstChild)
+
     for (let index = 0; index < 7; index++) {
         let hive = hives[index];
         var hiveTexts = hive.getElementsByTagName('text');
