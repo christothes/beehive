@@ -113,8 +113,11 @@ function getWordList() {
         let len = text.length;
         var wordLenArr = remainingLengths.get(text.charAt(0).toUpperCase());
         var wordLenIndex = remainingLengths.get('*').indexOf(len);
+        var totalsArr = remainingLengths.get('Σ');
         wordLenArr[wordLenIndex]--;
         wordLenArr[wordLenArr.length - 1]--;
+        totalsArr[wordLenIndex]--;
+        totalsArr[wordLenArr.length - 1]--;
 
         element.removeAttribute("class", "beehive-pangram");
         if ([...text.toLowerCase()].filter((v, i, a) => a.indexOf(v) === i).length == 7) {
@@ -172,7 +175,7 @@ function buildhintTable(wordData) {
             continue;
         addTableRow(html, key, wordData, false);
     }
-
+    addTableRow(html, 'Σ', wordData, true);
     var tableHtml = html.join("");
     hintTable.innerHTML = tableHtml;
 }
