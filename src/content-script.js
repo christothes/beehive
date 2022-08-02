@@ -112,7 +112,8 @@ function getWordList() {
         const text = element.innerText;
         let len = text.length;
         var wordLenArr = remainingLengths.get(text.charAt(0).toUpperCase());
-        wordLenArr[len - remainingLengths.get('*')[0]]--;
+        var wordLenIndex = remainingLengths.get('*').indexOf(len);
+        wordLenArr[wordLenIndex]--;
         wordLenArr[wordLenArr.length - 1]--;
 
         element.removeAttribute("class", "beehive-pangram");
