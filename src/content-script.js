@@ -6,8 +6,6 @@ var hints = [];
 var wordLengths = new Map();
 wordLengths.set('*', []);
 var lengthsDiv
-var span;
-var spanHeader;
 var hintTable;
 
 function Hint(prefix, count) {
@@ -45,8 +43,11 @@ fetch(`/${yr}/${mo}/${da}/crosswords/spelling-bee-forum.html`).then(r => r.text(
                 curLetter = cellText.charAt(0).toUpperCase();
                 wordLengths.set(curLetter, []);
                 console.log(`wordLengths: found rowLen ${rowLen} for '${cellText}'`);
-            } else if (i > 0 && cellText != 'Σ') {
-                wordLengths.get('*').push(parseInt(cellText));
+            } else if (i > 0) {
+                if (cellText == 'Σ')
+                    wordLengths.get('*').push(cellText);
+                else
+                    wordLengths.get('*').push(parseInt(cellText));
             }
         } else {
             let index = i % rowLen;
@@ -110,9 +111,10 @@ function getWordList() {
         const element = words[i];
         const text = element.innerText;
         let len = text.length;
-        var arr = remainingLengths.get(text.charAt(0).toUpperCase());
-        arr[len - remainingLengths.get('*')[0]]--;
-        arr[arr.length -1]--;
+        var wordLenArr = remainingLengths.get(text.charAt(0).toUpperCase());
+        wordLenArr[len - remainingLengths.get('*')[0]]--;
+        wordLenArr[wordLenArr.length - 1]--;
+
         element.removeAttribute("class", "beehive-pangram");
         if ([...text.toLowerCase()].filter((v, i, a) => a.indexOf(v) === i).length == 7) {
             //this is a pangram
@@ -120,6 +122,8 @@ function getWordList() {
         }
         wordList.push(text.charAt(0).toUpperCase() + text.slice(1));
     }
+
+    buildhintTable(remainingLengths);
     wordList.sort();
 }
 
@@ -155,42 +159,43 @@ function wordListUpdater() {
             while (wi < wordList.length && wordList[wi] < hints[hi].prefix)
                 wi++;
         }
-        buildhintTable();
     }, 50)
 }
 
-function buildhintTable() {
+function buildhintTable(wordData) {
     var html = [];
-    addTableRow(html, '*', true);
-    var keys = wordLengths.keys();
+    addTableRow(html, '*', wordData, true);
+    var keys = wordData.keys();
     for (const key of keys) {
         if (key == "*" || key == 'Σ')
             continue;
-        addTableRow(html, key, false);
+        addTableRow(html, key, wordData, false);
     }
 
     var tableHtml = html.join("");
     hintTable.innerHTML = tableHtml;
-    lengthsDiv.setAttribute('class', 'hinttooltip showtooltip');
 }
 
 function showLengthHints() {
     lengthsDiv.setAttribute('class', 'hinttooltip showtooltip');
 }
 
-function addTableRow(arr, key, isHeader) {
-    data = wordLengths.get(key);
+function addTableRow(arr, key, map, isHeader) {
+    data = map.get(key);
     arr.push('<tr class="bhrow">');
     if (isHeader)
-            arr.push('<th class="bhheadercell"> </th>');
-        else
-            arr.push(`<td class="bhcell">${key}</td>`);
+        arr.push('<th class="bhheadercell"> </th>');
+    else
+        arr.push(`<td class="bhheadercell">${key}</td>`);
+
     for (let i = 0; i < data.length; i++) {
         const cell = data[i];
-        if (isHeader)
-            arr.push(`<th class="bhheadercell">${cell}</th>`);
+        arr.push('<th class="');
+        if (isHeader || i == data.length - 1)
+            arr.push('bhheadercell"');
         else
-            arr.push(`<td class="bhcell">${cell}</td>`);
+            arr.push('bhcell"');
+        arr.push(` <td class="bhcell">${cell}</td>`);
     }
     arr.push("</tr>");
 }

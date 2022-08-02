@@ -13,13 +13,20 @@
   }
 
   .hinttooltip {
-    visibility: hidden;
-    /* NEW */
-    background: #C8C8C8;
+    visibility: visible;
+    border-radius: 6px;
+    border: 1px solid #dcdcdc;
     padding: 2px;
-    margin: 2px;
     z-index: 1000;
+    margin-bottom: 8px;
   }
+
+  .sb-wordlist-box {
+    border-radius: 6px;
+    border: 1px solid #dcdcdc;
+    overflow: hidden;
+    letter-spacing: 0.005em;
+}
 
   .bhcell {
     width: 30px;
@@ -33,4 +40,5 @@
     min-width: 30px;
     max-width: 30px;
     font-weight: bold;
+    text-align: center;
   }
