@@ -19,7 +19,7 @@ let yr = new Intl.DateTimeFormat('en', { year: 'numeric' }).format(d);
 let mo = new Intl.DateTimeFormat('en', { month: '2-digit' }).format(d);
 let da = new Intl.DateTimeFormat('en', { day: '2-digit' }).format(d);
 fetch(`/${yr}/${mo}/${da}/crosswords/spelling-bee-forum.html`).then(r => r.text()).then(html => {
-    var regex = / [a-z]{2}-[1-9]+/gm
+    var regex = / [a-z]{2}-[0-9]+/gm
     while (match = regex.exec(html)) {
         rawHints.push(match[0].trim());
     }
@@ -199,7 +199,7 @@ function addTableRow(arr, key, map, isHeader) {
             arr.push('bhheadercell"');
         else
             arr.push('bhcell"');
-        arr.push(` <td class="bhcell">${cell}</td>`);
+        arr.push(` <td class="bhcell">${cell == 0 && !isHeader && i != data.length - 1 ? '-' : cell}</td>`);
     }
     arr.push("</tr>");
 }
