@@ -1,8 +1,3 @@
-  .beehive {
-    font-style: italic;
-    color: #000000;
-  }
-
   .beehive-pangram {
     font-weight: bold;
   }
@@ -28,17 +23,37 @@
     letter-spacing: 0.005em;
 }
 
-  .bhcell {
+  .bhtable {
+    border-collapse: collapse;
+    margin: 0 auto;
+  }
+
+  .bhcell,
+  .bhheadercell,
+  .bhlabelcell {
     width: 30px;
     min-width: 30px;
     max-width: 30px;
+    padding: 2px 0;
     text-align: center;
   }
 
   .bhheadercell {
-    width: 30px;
-    min-width: 30px;
-    max-width: 30px;
     font-weight: bold;
-    text-align: center;
+  }
+
+  .bhlabelcell {
+    font-weight: normal;
+  }
+
+  .bhlabelcell span {
+    font-weight: bold;
+  }
+
+  .bhlabelcell.bhheadercell {
+    font-weight: bold;
+  }
+
+  .bhgrandtotal {
+    font-style: italic;
   }

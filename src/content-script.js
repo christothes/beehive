@@ -1,100 +1,138 @@
-var rawHints = [];
-var wordList = [];
 var wordListMap = new Map();
 var hiveMap = new Map();
-var hints = [];
 var wordLengths = new Map();
 wordLengths.set('*', []);
 var lengthsDiv
 var hintTable;
 
-function Hint(prefix, count) {
-    this.prefix = prefix;
-    this.count = count;
-}
-
-// build hint data from hints page
-let d = new Date();
-let yr = new Intl.DateTimeFormat('en', { year: 'numeric' }).format(d);
-let mo = new Intl.DateTimeFormat('en', { month: '2-digit' }).format(d);
-let da = new Intl.DateTimeFormat('en', { day: '2-digit' }).format(d);
-fetch(`/${yr}/${mo}/${da}/crosswords/spelling-bee-forum.html`).then(r => r.text()).then(html => {
-    var regex = / [a-z]{2}-[0-9]+/gm
-    while (match = regex.exec(html)) {
-        rawHints.push(match[0].trim());
-    }
-    rawHints = rawHints.filter((v, i, a) => a.indexOf(v) === i);
-    rawHints.sort();
-    wordListUpdater();
-
-    // parse the DOM
-    var parser = new DOMParser();
-    // Parse the text
-    var doc = parser.parseFromString(html, "text/html");
-    var table = doc.querySelector('table');
-    var cells = table.querySelectorAll("td");
-    let rowLen = 1;
-    let curLetter = ' ';
-    for (var i = 0; i < cells.length; i++) {
-        let cellText = cells[i].innerText;
-        if (rowLen == 1) {
-            if (cellText.indexOf(':') >= 0) {
-                rowLen = i;
-                curLetter = cellText.charAt(0).toUpperCase();
-                wordLengths.set(curLetter, []);
-                console.log(`wordLengths: found rowLen ${rowLen} for '${cellText}'`);
-            } else if (i > 0) {
-                if (cellText == 'Σ')
-                    wordLengths.get('*').push(cellText);
-                else
-                    wordLengths.get('*').push(parseInt(cellText));
-            }
-        } else {
-            let index = i % rowLen;
-            if (index == 0) {
-                curLetter = cellText.charAt(0).toUpperCase();
-                wordLengths.set(curLetter, []);
-            }
-            else if (index < rowLen) {
-                let parsed = parseInt(cellText);
-                wordLengths.get(curLetter).push(isNaN(parsed) ? 0 : parsed);
-            }
+// Build hint data from the puzzle data embedded in the Spelling Bee page.
+fetch('/puzzles/spelling-bee')
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Spelling Bee request failed with status ${response.status}`);
         }
-        console.log(`wordLengths: ${cellText} ${i % rowLen}`);
-    }
-    console.log(wordLengths);
-    createTooltip();
-});
-
-// attach handlers to the 'Enter' button
-var hives = document.getElementsByClassName('hive-action__submit');
-for (let i = 0; i < hives.length; i++) {
-    const element = hives[i];
-    element.addEventListener("click", wordListUpdater);
-}
-window.addEventListener('keyup', function (e) {
-    if (e.key === 'Enter') {
+        return response.text();
+    })
+    .then(html => {
+        var gameData = parseGameData(html);
+        populateHintData(gameData.today.answers);
+        return waitForGameUi();
+    })
+    .then(() => {
+        createTooltip();
+        attachHandlers();
         wordListUpdater();
-    }
-});
+    })
+    .catch(error => {
+        console.error('BeeHive could not initialize the Spelling Bee hints.', error);
+    });
 
-// attach handlers to hover on hives
-var hives = document.getElementsByClassName('hive-cell');
-for (let i = 0; i < hives.length; i++) {
-    const element = hives[i];
-    element.addEventListener("mouseenter", showLengthHints);
-    element.addEventListener("mouseleave", hideLengthHints);
+function waitForGameUi() {
+    if (isGameUiReady()) {
+        return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+        var observer = new MutationObserver(() => {
+            if (isGameUiReady()) {
+                clearTimeout(timeout);
+                observer.disconnect();
+                resolve();
+            }
+        });
+        var timeout = setTimeout(() => {
+            observer.disconnect();
+            reject(new Error('The Spelling Bee game UI did not become ready'));
+        }, 15000);
+
+        observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true
+        });
+    });
 }
 
-// Build the hints
-function buildHints() {
-    hints = [];
-    rawHints.forEach((element, index) => {
-        var parts = element.split('-');
-        parts[0][1] -= ('a' - 'A');
-        hints.push(new Hint(parts[0].charAt(0).toUpperCase() + parts[0].charAt(1), parseInt(parts[1])));
+function isGameUiReady() {
+    return document.getElementsByClassName('sb-controls').length > 0
+        && document.getElementsByClassName('sb-wordlist-items-pag').length > 0
+        && document.getElementsByClassName('hive-cell').length >= 7;
+}
+
+function parseGameData(html) {
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(html, "text/html");
+    var marker = 'window.gameData =';
+    var script = Array.from(doc.scripts).find(element => element.textContent.includes(marker));
+
+    if (!script) {
+        throw new Error('The Spelling Bee page did not include game data');
+    }
+
+    var json = script.textContent.slice(script.textContent.indexOf(marker) + marker.length).trim();
+    if (json.endsWith(';')) {
+        json = json.slice(0, -1);
+    }
+
+    var gameData = JSON.parse(json);
+    if (!gameData.today || !Array.isArray(gameData.today.answers)) {
+        throw new Error('The Spelling Bee page included invalid game data');
+    }
+
+    return gameData;
+}
+
+function populateHintData(answers) {
+    var lengthCounts = new Map();
+    var lengths = new Set();
+
+    answers.forEach(answer => {
+        var normalizedAnswer = answer.toLowerCase();
+        var firstLetter = normalizedAnswer.charAt(0).toUpperCase();
+        var length = normalizedAnswer.length;
+
+        lengths.add(length);
+
+        if (!lengthCounts.has(firstLetter)) {
+            lengthCounts.set(firstLetter, new Map());
+        }
+        var countsForLetter = lengthCounts.get(firstLetter);
+        countsForLetter.set(length, (countsForLetter.get(length) || 0) + 1);
     });
-    console.log("built hints");
+
+    var sortedLengths = Array.from(lengths).sort((a, b) => a - b);
+    wordLengths.clear();
+    wordLengths.set('*', [...sortedLengths, 'Σ']);
+
+    Array.from(lengthCounts.keys()).sort().forEach(letter => {
+        var countsForLetter = lengthCounts.get(letter);
+        var counts = sortedLengths.map(length => countsForLetter.get(length) || 0);
+        wordLengths.set(letter, [...counts, counts.reduce((sum, count) => sum + count, 0)]);
+    });
+
+    var totals = sortedLengths.map(length =>
+        Array.from(lengthCounts.values())
+            .reduce((sum, countsForLetter) => sum + (countsForLetter.get(length) || 0), 0)
+    );
+    wordLengths.set('Σ', [...totals, answers.length]);
+}
+
+function attachHandlers() {
+    var submitButtons = document.getElementsByClassName('hive-action__submit');
+    for (let i = 0; i < submitButtons.length; i++) {
+        submitButtons[i].addEventListener("click", wordListUpdater);
+    }
+
+    window.addEventListener('keyup', function (e) {
+        if (e.key === 'Enter') {
+            wordListUpdater();
+        }
+    });
+
+    var hives = document.getElementsByClassName('hive-cell');
+    for (let i = 0; i < hives.length; i++) {
+        hives[i].addEventListener("mouseenter", showLengthHints);
+        hives[i].addEventListener("mouseleave", hideLengthHints);
+    }
 }
 
 // Get the words already submitted from the word bank
@@ -124,15 +162,12 @@ function getWordList() {
             //this is a pangram
             element.setAttribute("class", "beehive-pangram");
         }
-        wordList.push(text.charAt(0).toUpperCase() + text.slice(1));
     }
 
     buildhintTable(remainingLengths);
-    wordList.sort();
 }
 
 function wordListUpdater() {
-    buildHints();
     setTimeout(() => {
         var cleanup = document.getElementsByClassName('beehive');
         let len = cleanup.length;
@@ -141,33 +176,12 @@ function wordListUpdater() {
             const element = cleanup[0];
             ul.removeChild(element);
         }
-        wordList = [];
         getWordList();
-
-        let wi = 0;
-        let hi = 0;
-        while (hi < hints.length) {
-            let pfCount = hints[hi].count;
-            for (let i = 0; i < pfCount; i++) {
-                if (wi >= wordList.length || !wordList[wi].startsWith(hints[hi].prefix)) {
-                    continue;
-                } else {
-                    wi++;
-                    hints[hi].count--;
-                }
-            }
-            if (hints[hi].count > 0) {
-                appendHintPrefix(hints[hi].prefix + " (" + hints[hi].count + " more)");
-            }
-            hi++;
-            while (wi < wordList.length && wordList[wi] < hints[hi].prefix)
-                wi++;
-        }
     }, 50)
 }
 
 function buildhintTable(wordData) {
-    var html = [];
+    var html = ['<tbody>'];
     addTableRow(html, '*', wordData, true);
     var keys = wordData.keys();
     for (const key of keys) {
@@ -176,6 +190,7 @@ function buildhintTable(wordData) {
         addTableRow(html, key, wordData, false);
     }
     addTableRow(html, 'Σ', wordData, true);
+    html.push('</tbody>');
     var tableHtml = html.join("");
     hintTable.innerHTML = tableHtml;
 }
@@ -185,21 +200,29 @@ function showLengthHints() {
 }
 
 function addTableRow(arr, key, map, isHeader) {
-    data = map.get(key);
+    var data = map.get(key);
+    var isTotalRow = key == 'Σ';
     arr.push('<tr class="bhrow">');
-    if (isHeader)
-        arr.push('<th class="bhheadercell"> </th>');
-    else
-        arr.push(`<td class="bhheadercell">${key}</td>`);
+
+    if (key == '*') {
+        arr.push('<th class="bhheadercell" scope="col"></th>');
+    } else {
+        var label = isTotalRow ? 'Σ:' : `<span>${key.toLowerCase()}</span>:`;
+        var labelClass = isTotalRow ? 'bhlabelcell bhheadercell' : 'bhlabelcell';
+        arr.push(`<th class="${labelClass}" scope="row">${label}</th>`);
+    }
 
     for (let i = 0; i < data.length; i++) {
         const cell = data[i];
-        arr.push('<th class="');
-        if (isHeader || i == data.length - 1)
-            arr.push('bhheadercell"');
-        else
-            arr.push('bhcell"');
-        arr.push(` <td class="bhcell">${cell == 0 && !isHeader && i != data.length - 1 ? '-' : cell}</td>`);
+        var isTotalColumn = i == data.length - 1;
+        var cellClass = isHeader || isTotalRow || isTotalColumn ? 'bhheadercell' : 'bhcell';
+        if (isTotalRow && isTotalColumn) {
+            cellClass += ' bhgrandtotal';
+        }
+        var cellValue = cell == 0 && !isHeader && !isTotalColumn ? '-' : cell;
+        var tag = key == '*' ? 'th' : 'td';
+        var scope = key == '*' ? ' scope="col"' : '';
+        arr.push(`<${tag} class="${cellClass}"${scope}>${cellValue}</${tag}>`);
     }
     arr.push("</tr>");
 }
@@ -231,12 +254,4 @@ function createTooltip() {
             hiveMap.set(hive, hiveText.textContent.toUpperCase());
         }
     }
-}
-
-function appendHintPrefix(prefix) {
-    var ul = document.getElementsByClassName('sb-wordlist-items-pag')[0];
-    var li = document.createElement("li");
-    li.appendChild(document.createTextNode(prefix));
-    li.setAttribute("class", "beehive"); // added line
-    ul.appendChild(li);
 }
