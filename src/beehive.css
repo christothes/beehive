@@ -57,3 +57,31 @@
   .bhgrandtotal {
     font-style: italic;
   }
+
+  .bhtwoletter {
+    border-top: 1px solid #dcdcdc;
+    margin-top: 6px;
+    padding: 6px 4px 2px;
+  }
+
+  .bhtwolettertitle {
+    font-size: inherit;
+    font-weight: bold;
+    margin: 0 0 4px;
+  }
+
+  .bhtwoletterlist {
+    display: grid;
+    gap: 2px;
+  }
+
+  .bhtwoletterrow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 8px;
+  }
+
+  .bhtwoletteritem {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
