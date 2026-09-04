@@ -85,11 +85,13 @@ function populateHintData(answers) {
     var lengthCounts = new Map();
     var lengths = new Set();
 
+    wordListMap.clear();
     answers.forEach(answer => {
         var normalizedAnswer = answer.toLowerCase();
         var firstLetter = normalizedAnswer.charAt(0).toUpperCase();
         var length = normalizedAnswer.length;
 
+        wordListMap.set(normalizedAnswer, true);
         lengths.add(length);
 
         if (!lengthCounts.has(firstLetter)) {
@@ -144,18 +146,25 @@ function getWordList() {
         remainingLengths.set(key, [...wordLengths.get(key)]);
     }
 
+    var submittedWords = new Set();
     var words = document.getElementsByClassName('sb-wordlist-items-pag')[0].children
     for (let i = 0; i < words.length; i++) {
         const element = words[i];
-        const text = element.innerText;
+        const text = element.innerText.trim().toLowerCase();
         let len = text.length;
         var wordLenArr = remainingLengths.get(text.charAt(0).toUpperCase());
         var wordLenIndex = remainingLengths.get('*').indexOf(len);
         var totalsArr = remainingLengths.get('Σ');
-        wordLenArr[wordLenIndex]--;
-        wordLenArr[wordLenArr.length - 1]--;
-        totalsArr[wordLenIndex]--;
-        totalsArr[wordLenArr.length - 1]--;
+        if (wordListMap.has(text)
+            && !submittedWords.has(text)
+            && wordLenArr
+            && wordLenIndex >= 0) {
+            submittedWords.add(text);
+            wordLenArr[wordLenIndex]--;
+            wordLenArr[wordLenArr.length - 1]--;
+            totalsArr[wordLenIndex]--;
+            totalsArr[totalsArr.length - 1]--;
+        }
 
         element.removeAttribute("class", "beehive-pangram");
         if ([...text.toLowerCase()].filter((v, i, a) => a.indexOf(v) === i).length == 7) {
